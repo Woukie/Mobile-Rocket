@@ -9,12 +9,14 @@ namespace Assets.Environment
         public Transform CameraTransform;
         public Material TerrainMaterial;
 
-        public float TerrainScale;
+        public float TerrainScale1;
+        public float TerrainScale2;
         public int WidthResolution;
         public int DepthResolution;
         public int ChunkWidth;
         public int ChunkDepth;
-        public float Amplitude;
+        public float Amplitude1;
+        public float Amplitude2;
         public int NumberOfChunks;
 
         private GameObject[] _chunks;
@@ -80,7 +82,10 @@ namespace Assets.Environment
 
             foreach (var meshVertex in chunkMesh.vertices)
             {
-                newChunkMeshVertices.Add(new Vector3(meshVertex.x, Perlin.Noise((meshVertex.x + chunk.transform.position.x) / TerrainScale, (meshVertex.z + chunk.transform.position.z) / TerrainScale) * Amplitude - meshVertex.z * meshVertex.z / 100, meshVertex.z));
+                var x = meshVertex.x + chunk.transform.position.x;
+                var z = meshVertex.z + chunk.transform.position.z;
+
+                newChunkMeshVertices.Add(new Vector3(meshVertex.x, Perlin.Noise(x * TerrainScale1, z * TerrainScale1) * Amplitude1 + Perlin.Noise(x * TerrainScale2, z * TerrainScale2) * Amplitude2 - meshVertex.z * meshVertex.z / 100, meshVertex.z));
             }
 
             chunkMesh.vertices = newChunkMeshVertices.ToArray();
