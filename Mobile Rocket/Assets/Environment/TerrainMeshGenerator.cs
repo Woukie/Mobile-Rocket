@@ -21,6 +21,7 @@ namespace Assets.Environment
 
         private GameObject[] _chunks;
         private int[] _currentChunkPositions;
+        private int _lastChunkPosition;
 
         private void Start()
         {
@@ -40,6 +41,12 @@ namespace Assets.Environment
 
         private void Update()
         {
+            var currentChunkPosition = ChunkWidth * (int) (CameraTransform.position.x / ChunkWidth) / (2 * WidthResolution);
+            if (currentChunkPosition == _lastChunkPosition)
+            {
+                return;
+            }
+
             var chunksToBeMoved = new List<int>();
             var missingChunks = new List<int>();
 
@@ -73,6 +80,8 @@ namespace Assets.Environment
                 UpdateGeometry(_chunks[chunkToBeMoved]);
                 missingChunks.RemoveAt(0);
             }
+
+            _lastChunkPosition = ChunkWidth * (int) (CameraTransform.position.x / ChunkWidth) / (2 * WidthResolution);
         }
 
         private void UpdateGeometry(GameObject chunk)
@@ -82,10 +91,19 @@ namespace Assets.Environment
 
             foreach (var meshVertex in chunkMesh.vertices)
             {
+                // For region specific terrain, optimize by considering it within (only) the area you want it
                 var x = meshVertex.x + chunk.transform.position.x;
                 var z = meshVertex.z + chunk.transform.position.z;
 
-                newChunkMeshVertices.Add(new Vector3(meshVertex.x, Perlin.Noise(x * TerrainScale1, z * TerrainScale1) * Amplitude1 + Perlin.Noise(x * TerrainScale2, z * TerrainScale2) * Amplitude2 - meshVertex.z * meshVertex.z / 100, meshVertex.z));
+                var startHill = x < 50 && x > -50 ? 10 / ((x * x + z * z) / 100 + 1) : 0;
+                var noise1 = Perlin.Noise(x * TerrainScale1, z * TerrainScale1);
+                var noise2 = Perlin.Noise(x * TerrainScale2, z * TerrainScale2);
+
+                var curvature = meshVertex.z * meshVertex.z / -100;
+
+                var yVal = noise1 * Amplitude1 + noise2 * Amplitude2 + curvature + startHill;
+
+                newChunkMeshVertices.Add(new Vector3(meshVertex.x, yVal, meshVertex.z));
             }
 
             chunkMesh.vertices = newChunkMeshVertices.ToArray();
@@ -135,7 +153,6 @@ namespace Assets.Environment
             chunkGameObject.GetComponent<MeshRenderer>().material = TerrainMaterial;
             chunkMesh.vertices = vertices.ToArray();
             chunkMesh.triangles = triangles;
-            chunkMesh.RecalculateNormals();
 
             var uvs = new Vector2[vertices.Count];
             for (var i = 0; i < vertices.Count; i++)
@@ -144,6 +161,8 @@ namespace Assets.Environment
             }
 
             chunkMesh.uv = uvs;
+
+            chunkMesh.RecalculateNormals();
 
             return chunkGameObject;
         }
